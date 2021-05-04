@@ -14247,13 +14247,21 @@ namespace ts {
                 constraint;
         }
 
+        function maybeNonDistributiveConditional(type: ConditionalType) : boolean {
+            return !(type.root.isDistributive &&
+                !maybeNonDistributiveNameType(type.checkType) &&
+                (type.extendsType.flags & TypeFlags.TypeParameter) &&
+                !maybeNonDistributiveNameType(getTrueTypeFromConditionalType(type)) &&
+                !maybeNonDistributiveNameType(getFalseTypeFromConditionalType(type)));
+        }
+
         // Ordinarily we reduce a keyof M, where M is a mapped type { [P in K as N<P>]: X }, to simply N<K>. This however presumes
         // that N distributes over union types, i.e. that N<A | B | C> is equivalent to N<A> | N<B> | N<C>. That presumption may not
         // be true when N is a non-distributive conditional type or an instantiable type with a non-distributive conditional type as
         // a constituent. In those cases, we cannot reduce keyof M and need to preserve it as is.
         function maybeNonDistributiveNameType(type: Type | undefined): boolean {
             return !!(type && (
-                type.flags & TypeFlags.Conditional && (!(<ConditionalType>type).root.isDistributive || maybeNonDistributiveNameType((<ConditionalType>type).checkType)) ||
+                type.flags & TypeFlags.Conditional && maybeNonDistributiveConditional(<ConditionalType>type) ||
                 type.flags & (TypeFlags.UnionOrIntersection | TypeFlags.TemplateLiteral) && some((<UnionOrIntersectionType | TemplateLiteralType>type).types, maybeNonDistributiveNameType) ||
                 type.flags & (TypeFlags.Index | TypeFlags.StringMapping) && maybeNonDistributiveNameType((<IndexType | StringMappingType>type).type) ||
                 type.flags & TypeFlags.IndexedAccess && maybeNonDistributiveNameType((<IndexedAccessType>type).indexType) ||
